@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Стилист — прототип</title>
+<style>
+  :root{
+    --bg:#0e0f13; --panel:#16181f; --panel2:#1d2029; --line:#2a2e3a;
+    --txt:#eceef3; --mut:#9aa0ad; --acc:#c79bff; --acc2:#7ad0c0;
+    --bot:#21242e; --user:#5b4b8a; --ok:#7ad0c0; --warn:#ffcf8a;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#08090c;font-family:-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
+    color:var(--txt);display:flex;justify-content:center;min-height:100vh;padding:24px 12px}
+  .phone{width:100%;max-width:420px;background:var(--bg);border:1px solid var(--line);
+    border-radius:28px;overflow:hidden;display:flex;flex-direction:column;height:90vh;min-height:620px;
+    box-shadow:0 30px 80px rgba(0,0,0,.6)}
+  /* header */
+  .top{display:flex;align-items:center;gap:12px;padding:16px 18px;background:var(--panel);
+    border-bottom:1px solid var(--line)}
+  .ava{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--acc),var(--acc2));
+    display:flex;align-items:center;justify-content:center;font-size:20px}
+  .top h1{font-size:16px;font-weight:600}
+  .top p{font-size:12px;color:var(--mut)}
+  .prog{height:3px;background:var(--panel2)}
+  .prog i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--acc),var(--acc2));
+    transition:width .4s ease}
+  /* chat */
+  .chat{flex:1;overflow-y:auto;padding:18px 14px;display:flex;flex-direction:column;gap:12px;
+    scroll-behavior:smooth}
+  .msg{max-width:84%;padding:11px 14px;border-radius:16px;font-size:14.5px;line-height:1.5;
+    animation:pop .25s ease}
+  .bot{background:var(--bot);border-bottom-left-radius:5px;align-self:flex-start}
+  .me{background:var(--user);border-bottom-right-radius:5px;align-self:flex-end}
+  .msg b{color:var(--acc)}
+  @keyframes pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  /* options */
+  .opts{display:flex;flex-wrap:wrap;gap:8px;align-self:flex-start;max-width:90%;animation:pop .25s}
+  .opt{background:var(--panel2);border:1px solid var(--line);color:var(--txt);padding:9px 14px;
+    border-radius:20px;font-size:13.5px;cursor:pointer;transition:.15s}
+  .opt:hover{border-color:var(--acc);background:#262a36}
+  /* upload card */
+  .upl{align-self:flex-start;background:var(--panel2);border:1px dashed var(--acc);border-radius:16px;
+    padding:18px;text-align:center;width:90%;cursor:pointer;transition:.15s}
+  .upl:hover{background:#262a36}
+  .upl .ic{font-size:32px;margin-bottom:6px}
+  .upl small{color:var(--mut);display:block;margin-top:4px;font-size:12px}
+  .thumbs{display:flex;gap:8px;margin-top:10px;justify-content:center}
+  .thumb{width:46px;height:60px;border-radius:8px;background:linear-gradient(160deg,#3a3550,#2a3b3a);
+    border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:20px}
+  /* result card */
+  .card{align-self:stretch;background:var(--panel);border:1px solid var(--line);border-radius:18px;
+    padding:18px;animation:pop .3s}
+  .card h2{font-size:18px;margin-bottom:2px}
+  .badge{display:inline-block;background:rgba(199,155,255,.15);color:var(--acc);font-size:12px;
+    padding:3px 10px;border-radius:20px;margin-top:6px}
+  .conf{margin:12px 0 4px;font-size:12px;color:var(--mut)}
+  .bar{height:7px;background:var(--panel2);border-radius:6px;overflow:hidden}
+  .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--acc),var(--acc2))}
+  .pal{display:flex;gap:7px;margin:14px 0 4px;flex-wrap:wrap}
+  .sw{width:34px;height:34px;border-radius:9px;border:1px solid rgba(255,255,255,.15)}
+  .sec{margin-top:14px}
+  .sec h3{font-size:13px;color:var(--acc2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+  .sec ul{list-style:none;display:flex;flex-direction:column;gap:5px}
+  .sec li{font-size:13.5px;padding-left:18px;position:relative;color:#d6d9e2}
+  .sec li::before{content:"◆";position:absolute;left:0;color:var(--acc2);font-size:9px;top:3px}
+  .sec li.no::before{content:"✕";color:#ff8a8a}
+  /* input bar */
+  .bar2{display:flex;gap:8px;padding:12px;border-top:1px solid var(--line);background:var(--panel)}
+  .bar2 input{flex:1;background:var(--panel2);border:1px solid var(--line);border-radius:22px;
+    padding:11px 16px;color:var(--txt);font-size:14px;outline:none}
+  .bar2 input:focus{border-color:var(--acc)}
+  .bar2 button{background:linear-gradient(135deg,var(--acc),var(--acc2));border:none;width:44px;height:44px;
+    border-radius:50%;cursor:pointer;font-size:18px;color:#16181f}
+  .typing{align-self:flex-start;display:flex;gap:4px;padding:12px 16px;background:var(--bot);border-radius:16px}
+  .typing span{width:7px;height:7px;border-radius:50%;background:var(--mut);animation:bl 1.2s infinite}
+  .typing span:nth-child(2){animation-delay:.2s}.typing span:nth-child(3){animation-delay:.4s}
+  @keyframes bl{0%,60%,100%{opacity:.3}30%{opacity:1}}
+  .note{font-size:11px;color:var(--mut);text-align:center;padding:6px 10px;background:rgba(255,207,138,.08)}
+  .restart{font-size:12px;color:var(--acc);cursor:pointer;text-align:center;padding:6px}
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="top">
+    <div class="ava">✨</div>
+    <div style="flex:1"><h1>Стилист</h1><p id="status">определяет ваш типаж</p></div>
+    <div class="restart" onclick="restart()">↻</div>
+  </div>
+  <div class="prog"><i id="prog"></i></div>
+  <div class="note">Демо-прототип. Анализ фото имитируется — настоящий выполняет vision-модель.</div>
+  <div class="chat" id="chat"></div>
+  <div class="bar2">
+    <input id="inp" placeholder="Напишите сообщение…" onkeydown="if(event.key==='Enter')freeChat()" disabled>
+    <button onclick="freeChat()">➤</button>
+  </div>
+</div>
+
+<script>
+const chat=document.getElementById('chat'), prog=document.getElementById('prog'),
+      status=document.getElementById('status'), inp=document.getElementById('inp');
+let step=0, answers={}, score={yin:0,yang:0}, kibbe=null;
+
+// ---- Кибби: 5 базовых семейств для демо-скоринга ----
+const TYPES={
+  Dramatic:{name:"Dramatic (Драматик)",badge:"Чистый ян · вытянутость и острота",
+    pal:["#0b0b0b","#ffffff","#c9102f","#1c2c5b","#7a7d82"],
+    yes:["Чёткие вертикальные линии и длинные силуэты","Острые плечи, структурные жакеты","Монохром и резкие контрасты","Геометричные крупные аксессуары"],
+    no:["Мелкие рюши и романтичный декор","Дробные принты и многослойность"]},
+  Natural:{name:"Soft Natural (Софт Нэчурал)",badge:"Ян с мягкостью · свобода и текстура",
+    pal:["#6b4f3a","#c2a878","#8a9a5b","#e8ddc7","#3f5345"],
+    yes:["Свободные, не облегающие силуэты","Натуральные фактурные ткани: лён, твид, замша","Длина и асимметрия, мягкие плечи","Крупная этно/деревянная бижутерия"],
+    no:["Жёсткая геометрия и парадная чопорность","Мелкий хрупкий декор"]},
+  Classic:{name:"Soft Classic (Софт Классик)",badge:"Баланс инь-ян · симметрия и гладкость",
+    pal:["#2e3a59","#b08d8d","#e7e3da","#8c95a3","#5a6b5d"],
+    yes:["Симметричные сбалансированные силуэты","Гладкие качественные ткани, чистый крой","Умеренные плавные линии","Аккуратные изящные аксессуары"],
+    no:["Резкая авангардная асимметрия","Грубые объёмные фактуры"]},
+  Gamine:{name:"Soft Gamine (Софт Гамин)",badge:"Контраст инь-ян · компактность и игра",
+    pal:["#1b3a5b","#f25c54","#ffd166","#ffffff","#2a9d8f"],
+    yes:["Дробные контрастные сочетания","Чёткие, но компактные линии","Игра принтов, акценты на талии","Небольшие выразительные аксессуары"],
+    no:["Длинные тягучие монолитные силуэты","Однотонные бесформенные балахоны"]},
+  Romantic:{name:"Romantic (Романтик)",badge:"Чистый инь · мягкость и округлость",
+    pal:["#7a2f4e","#e6a4b4","#f3e0d2","#9b6a8f","#caa05a"],
+    yes:["Мягкие струящиеся ткани, драпировки","Подчёркнутая талия, округлые линии","Декольте и плавные вырезы","Изящные блестящие аксессуары"],
+    no:["Жёсткая геометрия и острые плечи","Грубые тяжёлые фактуры"]}
+};
+
+function scrollDown(){chat.scrollTop=chat.scrollHeight}
+function bot(html,cb){
+  const t=document.createElement('div');t.className='typing';t.innerHTML='<span></span><span></span><span></span>';
+  chat.appendChild(t);scrollDown();
+  setTimeout(()=>{t.remove();const m=document.createElement('div');m.className='msg bot';
+    m.innerHTML=html;chat.appendChild(m);scrollDown();if(cb)setTimeout(cb,450);},650);
+}
+function me(txt){const m=document.createElement('div');m.className='msg me';m.textContent=txt;
+  chat.appendChild(m);scrollDown();}
+function options(arr,fn){
+  const wrap=document.createElement('div');wrap.className='opts';
+  arr.forEach(o=>{const b=document.createElement('div');b.className='opt';b.textContent=o.label;
+    b.onclick=()=>{me(o.label);wrap.remove();fn(o)};wrap.appendChild(b)});
+  chat.appendChild(wrap);scrollDown();
+}
+function setProg(p){prog.style.width=p+'%'}
+
+// ---- сценарий ----
+function start(){
+  setProg(8);
+  bot("Привет! Я помогу определить ваш <b>типаж по системе Кибби</b>, цветотип и подберу советы по стилю и аксессуарам ✨",()=>
+  bot("Сначала пара вопросов, потом попрошу загрузить фото. Готовы?",()=>
+  options([{label:"Поехали 🚀",v:1}],()=>q1())));
+}
+function q1(){
+  setProg(20);status.textContent="вопрос 1 из 4";
+  bot("Какой у вас <b>рост</b>? Это один из ключевых параметров Кибби.",()=>
+  options([
+    {label:"До 160 см",yin:2,yang:0},
+    {label:"160–172 см",yin:1,yang:1},
+    {label:"Выше 172 см",yin:0,yang:2}
+  ],o=>{score.yin+=o.yin;score.yang+=o.yang;q2()}));
+}
+function q2(){
+  setProg(38);status.textContent="вопрос 2 из 4";
+  bot("Как бы вы описали <b>костяк и плечи</b>?",()=>
+  options([
+    {label:"Острые, выраженные кости",yin:0,yang:2},
+    {label:"Широкие, но мягкие",yin:1,yang:1},
+    {label:"Мягкие, округлые",yin:2,yang:0}
+  ],o=>{score.yin+=o.yin;score.yang+=o.yang;q3()}));
+}
+function q3(){
+  setProg(56);status.textContent="вопрос 3 из 4";
+  bot("Какие у вас <b>черты лица</b> по ощущению?",()=>
+  options([
+    {label:"Резкие, графичные",yin:0,yang:2},
+    {label:"Сбалансированные",yin:1,yang:1},
+    {label:"Мягкие, округлые",yin:2,yang:0}
+  ],o=>{score.yin+=o.yin;score.yang+=o.yang;q4()}));
+}
+function q4(){
+  setProg(72);status.textContent="вопрос 4 из 4";
+  bot("Как на вас обычно <b>сидит одежда</b>?",()=>
+  options([
+    {label:"Прямые вещи смотрятся лучше",yin:0,yang:2},
+    {label:"По-разному, нужен баланс",yin:1,yang:1},
+    {label:"Талию хочется подчеркнуть",yin:2,yang:0}
+  ],o=>{score.yin+=o.yin;score.yang+=o.yang;photoStep()}));
+}
+function photoStep(){
+  setProg(82);status.textContent="загрузка фото";
+  bot("Отлично! Теперь загрузите <b>2–4 фото</b>: в полный рост спереди и сбоку + фото лица при дневном свете. Так я уточню типаж и определю цветотип.",()=>{
+    const u=document.createElement('div');u.className='upl';
+    u.innerHTML='<div class="ic">📷</div><b>Загрузить фото</b><small>демо: нажмите, чтобы сымитировать</small>';
+    u.onclick=()=>{u.outerHTML='<div class="upl"><div class="thumbs"><div class="thumb">🧍</div><div class="thumb">🚶</div><div class="thumb">🙂</div></div><small style="margin-top:10px">3 фото загружены</small></div>';
+      me("📎 3 фото");analyze();};
+    chat.appendChild(u);scrollDown();
+    const skip=document.createElement('div');skip.className='opts';
+    const b=document.createElement('div');b.className='opt';b.textContent="Пропустить (только по опроснику)";
+    b.onclick=()=>{skip.remove();me("Пропустить фото");analyze();};
+    skip.appendChild(b);chat.appendChild(skip);
+  });
+}
+function analyze(){
+  setProg(92);status.textContent="анализирую…";
+  bot("Анализирую признаки: костяк, вертикаль, черты лица, подтон кожи… 🔍",()=>{
+    // выбор типа по балансу инь/ян
+    const d=score.yang-score.yin; // -8..+8
+    let key;
+    if(d>=4)key="Dramatic";else if(d>=1)key="Natural";
+    else if(d===0)key="Classic";else if(d>=-3)key="Gamine";else key="Romantic";
+    kibbe=TYPES[key];
+    const conf=72+Math.min(20,Math.abs(d)*3);
+    showResult(conf);
+  });
+}
+function showResult(conf){
+  setProg(100);status.textContent="готово ✓";
+  const k=kibbe;
+  const card=document.createElement('div');card.className='card';
+  card.innerHTML=`
+    <h2>${k.name}</h2>
+    <div class="badge">${k.badge}</div>
+    <div class="conf">Уверенность анализа: ${conf}%</div>
+    <div class="bar"><i style="width:${conf}%"></i></div>
+    <div class="sec"><h3>🎨 Ваша палитра</h3>
+      <div class="pal">${k.pal.map(c=>`<div class="sw" style="background:${c}"></div>`).join('')}</div>
+    </div>
+    <div class="sec"><h3>✓ Что вам идёт</h3>
+      <ul>${k.yes.map(x=>`<li>${x}</li>`).join('')}</ul>
+    </div>
+    <div class="sec"><h3>✕ Чего избегать</h3>
+      <ul>${k.no.map(x=>`<li class="no">${x}</li>`).join('')}</ul>
+    </div>`;
+  chat.appendChild(card);scrollDown();
+  setTimeout(()=>bot("Это предварительный результат — типаж по Кибби субъективен. Согласны или скорректировать?",()=>
+    options([
+      {label:"Похоже на меня 👍",v:1},
+      {label:"Хочу пересмотреть",v:2}
+    ],o=>{
+      if(o.v===2){bot("Без проблем — в полной версии можно вручную поправить тип, и советы пересчитаются. А пока спросите меня о чём угодно по вашему стилю 💬",enableChat);}
+      else{bot("Отлично! Теперь можете спросить меня про аксессуары, капсулу или конкретную вещь — отвечу с учётом вашего типажа 💬",enableChat);}
+    })),300);
+}
+function enableChat(){inp.disabled=false;status.textContent="консультант на связи";inp.focus();}
+function freeChat(){
+  const t=inp.value.trim();if(!t)return;me(t);inp.value='';
+  const k=kibbe||TYPES.Classic;
+  let r;const low=t.toLowerCase();
+  if(low.includes('аксессуар')||low.includes('украшен')||low.includes('сумк'))
+    r=`Для вашего типажа <b>${k.name.split(' ')[0]}</b> подойдут аксессуары в логике «${k.badge.split('·')[1]||'вашего баланса'}». Например: ${k.yes[3]||k.yes[0]}.`;
+  else if(low.includes('цвет')||low.includes('палитр'))
+    r="Ваша палитра — в карточке выше. Держитесь этих оттенков как базы, а контраст между верхом и низом подбирайте под свой цветотип.";
+  else if(low.includes('капсул')||low.includes('гардероб'))
+    r=`Базовая капсула под ваш типаж: ${k.yes[0].toLowerCase()}, ${k.yes[1].toLowerCase()}. В полной версии я соберу её с конкретными вещами и ссылками.`;
+  else if(low.includes('джинс')||low.includes('брюк')||low.includes('плать')||low.includes('юбк'))
+    r=`По силуэтам вам стоит ориентироваться на: ${k.yes[0].toLowerCase()}. Избегайте: ${k.no[0].toLowerCase()}.`;
+  else
+    r=`Хороший вопрос! С учётом вашего типажа <b>${k.name.split(' ')[0]}</b> я бы советовал: ${k.yes[Math.floor(Math.random()*k.yes.length)].toLowerCase()}. Это демо — полная версия отвечает развёрнуто и помнит весь ваш профиль.`;
+  bot(r);
+}
+function restart(){chat.innerHTML='';step=0;answers={};score={yin:0,yang:0};kibbe=null;
+  inp.disabled=true;setProg(0);start();}
+start();
+</script>
+</body>
+</html>
