@@ -18,6 +18,7 @@ mvp/
 │   └── archetypes.json  7 архетипов стиля
 ├── engine.py            движок анализа + самопроверка
 ├── api.py               HTTP API (стандартная библиотека)
+├── claude_client.py     коннектор Claude API (vision-фото + чат)
 ├── telegram_bot.py      коннектор Telegram (long polling)
 └── README.md
 ```
@@ -67,30 +68,60 @@ curl -X POST http://localhost:8000/analyze \
 ## 3. Подключить к Telegram-боту
 
 1. Создайте бота у **@BotFather** и получите токен.
-2. Запустите:
+2. (Опционально, для фото и умного чата) получите ключ **Claude API** на console.anthropic.com.
+3. Задайте переменные окружения и запустите:
 
 ```bash
 cd mvp
-export TELEGRAM_TOKEN="123456:ABC..."   # Windows: set TELEGRAM_TOKEN=123456:ABC...
+# обязательно:
+export TELEGRAM_TOKEN="123456:ABC..."        # Windows: set TELEGRAM_TOKEN=123456:ABC...
+# опционально — включает анализ фото и умный чат:
+export ANTHROPIC_API_KEY="sk-ant-..."        # Windows: set ANTHROPIC_API_KEY=sk-ant-...
 python telegram_bot.py
 ```
 
-3. Напишите боту `/start` — он проведёт по опроснику и выдаст профиль.
+4. Напишите боту `/start` — он проведёт по опроснику и выдаст профиль.
+   Если задан `ANTHROPIC_API_KEY` — можно прислать фото (уточнит цветотип) и задавать
+   свободные вопросы (отвечает Claude с учётом профиля).
 
 Бот «тонкий»: вся логика в `engine.py`. Чтобы подключить другой канал (веб-виджет,
 WhatsApp, Telegram Mini App) — обращайтесь к тому же API или импортируйте `engine` напрямую.
 
 ---
 
-## Как подключить анализ фото (следующий шаг)
+## Где подключается Claude API
 
-Сейчас точка приёма фото в боте — заглушка. Чтобы включить:
+Ключ задаётся **один раз** через переменную окружения `ANTHROPIC_API_KEY`, а используется
+в модуле **`claude_client.py`** для двух задач:
 
-1. Отправляйте фото во внешнюю **vision-модель** и извлекайте параметры:
-   `undertone` (warm/cool/neutral), `value` (light/medium/deep),
-   `chroma` (bright/medium/soft), `contrast` (high/medium/low),
-   и опционально `lean` (число: + мягче/инь, − острее/ян).
-2. Передавайте их в движок как `vision`:
+| Функция | Где вызывается | Что делает |
+|---|---|---|
+| `analyze_photo(image_bytes)` | бот при получении фото | Claude vision определяет подтон/светлоту/насыщенность/контраст/lean → передаёт в движок как `vision` |
+| `consultant_reply(question, profile)` | бот при свободном вопросе | Claude отвечает как стилист, опираясь только на профиль пользователя |
+
+Модель меняется переменной `CLAUDE_MODEL` (по умолчанию `claude-sonnet-4-6`).
+
+**Важно:** Claude — опционален. Без ключа движок, API и опросник в боте работают как есть;
+просто отключаются фото-анализ и умный чат (срабатывает запасная логика на правилах).
+
+Быстрая проверка ключа отдельно:
+
+```bash
+cd mvp
+export ANTHROPIC_API_KEY="sk-ant-..."
+python claude_client.py        # выведет тестовый ответ стилиста
+```
+
+---
+
+## Анализ фото — уже реализован
+
+Приём фото в боте подключён к Claude vision (`claude_client.analyze_photo`). При наличии
+`ANTHROPIC_API_KEY` бот скачивает фото, извлекает параметры и передаёт их в движок как `vision`:
+`undertone` (warm/cool/neutral), `value` (light/medium/deep), `chroma` (bright/medium/soft),
+`contrast` (high/medium/low), `lean` (−4..+4: + мягче/инь, − острее/ян).
+
+Эти же параметры можно передать в движок напрямую (например, от другой vision-модели):
 
 ```python
 engine.analyze_profile(answers, vision={"undertone": "cool", "value": "deep",

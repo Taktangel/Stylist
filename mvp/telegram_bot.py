@@ -17,9 +17,11 @@ import urllib.request
 import urllib.error
 
 import engine
+import claude_client
 
 TOKEN = os.environ.get("TELEGRAM_TOKEN", "").strip()
 API = "https://api.telegram.org/bot%s/" % TOKEN
+FILE_API = "https://api.telegram.org/file/bot%s/" % TOKEN
 
 # Состояние диалога по chat_id: {"i": индекс_вопроса, "answers": {...}, "done": bool}
 STATE = {}
@@ -55,9 +57,23 @@ def kb_for(question):
     return rows
 
 
+def download_file(file_id):
+    """Скачивает файл из Telegram по file_id -> bytes или None."""
+    info = call("getFile", {"file_id": file_id})
+    if not info or not info.get("ok"):
+        return None
+    path = info["result"]["file_path"]
+    try:
+        with urllib.request.urlopen(FILE_API + path, timeout=60) as r:
+            return r.read()
+    except Exception as e:  # noqa
+        print("Не удалось скачать фото:", e)
+        return None
+
+
 # ---------------------------------------------------------------- сценарий
 def start(chat_id):
-    STATE[chat_id] = {"i": 0, "answers": {}, "done": False}
+    STATE[chat_id] = {"i": 0, "answers": {}, "vision": None, "done": False}
     send(chat_id,
          "Привет! Я помогу определить ваш <b>типаж по Кибби</b>, <b>цветотип</b> и "
          "<b>стиль</b>, и дам персональные советы ✨\n\nОтветьте на несколько вопросов.")
@@ -87,11 +103,14 @@ def on_answer(chat_id, qid, oid):
 def finish(chat_id):
     st = STATE[chat_id]
     st["done"] = True
-    p = engine.analyze_profile(st["answers"])
+    p = engine.analyze_profile(st["answers"], st.get("vision"))
     send(chat_id, format_profile(p))
-    send(chat_id, "💬 Теперь можете спросить меня про аксессуары, капсулу или "
-                  "конкретную вещь — отвечу с учётом вашего профиля.\n\n"
-                  "Чтобы пройти заново — /start")
+    tail = ("💬 Теперь можете спросить меня про аксессуары, капсулу или конкретную вещь — "
+            "отвечу с учётом вашего профиля.\n")
+    if claude_client.enabled():
+        tail += "📷 Или пришлите фото при дневном свете — уточню цветотип по нему.\n"
+    tail += "\nЧтобы пройти заново — /start"
+    send(chat_id, tail)
 
 
 def format_profile(p):
@@ -121,13 +140,48 @@ def format_profile(p):
     return "\n".join(lines)
 
 
+def on_photo(chat_id, msg):
+    st = STATE.get(chat_id)
+    if not st:
+        start(chat_id)
+        return
+    if not claude_client.enabled():
+        send(chat_id, "📷 Фото получено, но анализ фото выключен (нет ключа Claude). "
+                      "Профиль строится по опроснику. Чтобы включить — задайте ANTHROPIC_API_KEY.")
+        return
+    send(chat_id, "🔍 Анализирую фото…")
+    # берём самое крупное фото
+    file_id = msg["photo"][-1]["file_id"]
+    img = download_file(file_id)
+    if not img:
+        send(chat_id, "Не получилось загрузить фото, попробуйте ещё раз.")
+        return
+    vision = claude_client.analyze_photo(img)
+    if not vision:
+        send(chat_id, "Не удалось распознать параметры по фото. Профиль по опроснику остаётся в силе.")
+        return
+    st["vision"] = vision
+    if st.get("done"):
+        p = engine.analyze_profile(st["answers"], vision)
+        send(chat_id, "✨ Уточнил по фото:\n\n" + format_profile(p))
+    else:
+        send(chat_id, "✅ Фото учтено. Допройдите опросник — и я соберу профиль с поправкой по фото.")
+
+
 def on_text(chat_id, text):
     st = STATE.get(chat_id)
     if not st or not st.get("done"):
         start(chat_id)
         return
-    # простой консультант на основе профиля
-    p = engine.analyze_profile(st["answers"])
+    p = engine.analyze_profile(st["answers"], st.get("vision"))
+
+    # умный консультант через Claude (если есть ключ)
+    smart = claude_client.consultant_reply(text, p)
+    if smart:
+        send(chat_id, smart)
+        return
+
+    # запасная логика без Claude
     k = p["kibbe"]
     low = text.lower()
     rec = p["recommendations"]
@@ -178,9 +232,7 @@ def handle(upd):
         msg = upd["message"]
         chat_id = msg["chat"]["id"]
         if "photo" in msg:
-            # TODO: подключить vision-модель — извлечь undertone/value/chroma/lean
-            send(chat_id, "📷 Фото получено. В этой версии анализ фото — заглушка; "
-                          "подключим vision-модель в следующей. Пока пройдём по опроснику: /start")
+            on_photo(chat_id, msg)
             return
         text = msg.get("text", "")
         if text.startswith("/start"):

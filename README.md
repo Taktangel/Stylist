@@ -27,7 +27,8 @@ Telegram-бот:
 
 ```bash
 cd mvp
-export TELEGRAM_TOKEN="<токен от @BotFather>"   # Windows: set TELEGRAM_TOKEN=...
+export TELEGRAM_TOKEN="<токен от @BotFather>"     # Windows: set TELEGRAM_TOKEN=...
+export ANTHROPIC_API_KEY="<ключ Claude API>"      # опционально: фото + умный чат
 python telegram_bot.py
 ```
 
@@ -35,9 +36,15 @@ python telegram_bot.py
 
 ## Секреты
 
-Токен бота читается из переменной окружения `TELEGRAM_TOKEN` и **не хранится в репозитории**.
-В CI/деплое добавляйте его как секрет (GitHub Actions → Settings → Secrets → `TELEGRAM_TOKEN`).
+Секреты читаются из переменных окружения и **не хранятся в репозитории**:
+
+- `TELEGRAM_TOKEN` — обязателен для бота.
+- `ANTHROPIC_API_KEY` — опционален; включает анализ фото и умный чат через Claude.
+
+В CI/деплое добавляйте их как секреты (GitHub Actions → Settings → Secrets → `TELEGRAM_TOKEN`,
+`ANTHROPIC_API_KEY`).
 
 ## Статус
 
-MVP. Анализ фото (vision-модель) — следующий шаг: контракт `vision` описан в `mvp/README.md`.
+MVP. Опросник + движок работают автономно. Анализ фото (Claude vision) и умный чат-консультант
+подключаются ключом `ANTHROPIC_API_KEY` — см. `mvp/README.md`.
