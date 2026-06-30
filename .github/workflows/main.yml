@@ -1,0 +1,26 @@
+name: CI
+
+# Прогоняет проверки на каждый пуш и pull request.
+on:
+  push:
+  pull_request:
+  workflow_dispatch:   # можно запустить вручную из вкладки Actions
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Validate knowledge base (JSON)
+        run: |
+          python -c "import json, glob; [json.load(open(f, encoding='utf-8')) for f in glob.glob('mvp/kb/*.json')]; print('KB JSON OK')"
+
+      - name: Engine self-test
+        run: python mvp/engine.py --selftest
