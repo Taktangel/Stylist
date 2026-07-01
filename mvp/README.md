@@ -19,6 +19,9 @@ mvp/
 ├── engine.py            движок анализа + самопроверка
 ├── api.py               HTTP API (стандартная библиотека)
 ├── claude_client.py     коннектор Claude API (vision-фото + чат)
+├── colors.py            русские названия цветов по HEX
+├── palette_image.py     генерация картинки-палитры (PNG, чистый Python)
+├── shopping.py          поисковые ссылки образов на Wildberries
 ├── telegram_bot.py      коннектор Telegram (long polling)
 └── README.md
 ```

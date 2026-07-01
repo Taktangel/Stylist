@@ -16,6 +16,9 @@ import json
 import os
 import sys
 
+import colors
+import shopping
+
 BASE = os.path.dirname(os.path.abspath(__file__))
 KB_DIR = os.path.join(BASE, "kb")
 
@@ -297,15 +300,22 @@ def analyze_profile(answers, vision=None):
     arch = _pick_archetype(answers)
 
     rec = kibbe["recommendations"]
+    palette_named = [{"hex": h, "name": colors.name_ru(h), "role": colors.role_ru(h)}
+                     for h in season["palette"]]
+    # базовый цвет-подсказка для шоппинга — тёмная нейтраль сезона
+    neutrals = season.get("neutrals", [])
+    base_word = colors.name_ru(neutrals[-1]) if neutrals else colors.name_ru(season["palette"][0])
     recommendations = {
         "palette": season["palette"],
-        "neutrals": season.get("neutrals", []),
+        "palette_named": palette_named,
+        "neutrals": neutrals,
         "silhouettes": rec.get("silhouettes", []),
         "fabrics": rec.get("fabrics", []),
         "necklines": rec.get("necklines", []),
         "accessories": rec.get("accessories", []),
         "metals": season.get("metals", []),
         "capsule": _capsule(kibbe, arch),
+        "shopping": shopping.outfit_links(kibbe["family"], base_word),
         "avoid": list(kibbe.get("avoid", [])) + list(season.get("avoid", [])),
     }
 

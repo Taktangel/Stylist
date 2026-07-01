@@ -18,6 +18,7 @@ import urllib.error
 
 import engine
 import claude_client
+import palette_image
 
 TOKEN = os.environ.get("TELEGRAM_TOKEN", "").strip()
 API = "https://api.telegram.org/bot%s/" % TOKEN
@@ -47,6 +48,36 @@ def send(chat_id, text, keyboard=None):
     if keyboard:
         params["reply_markup"] = {"inline_keyboard": keyboard}
     return call("sendMessage", params)
+
+
+def send_photo_bytes(chat_id, png, caption=None):
+    """Отправляет изображение (bytes PNG) через multipart/form-data."""
+    boundary = "----stylist%d" % int(time.time() * 1000)
+    parts = []
+
+    def field(name, value):
+        return ("--%s\r\nContent-Disposition: form-data; name=\"%s\"\r\n\r\n%s\r\n"
+                % (boundary, name, value)).encode("utf-8")
+
+    body = field("chat_id", str(chat_id))
+    if caption:
+        body += field("caption", caption)
+        body += field("parse_mode", "HTML")
+    body += ("--%s\r\nContent-Disposition: form-data; name=\"photo\"; "
+             "filename=\"palette.png\"\r\nContent-Type: image/png\r\n\r\n"
+             % boundary).encode("utf-8")
+    body += png + b"\r\n"
+    body += ("--%s--\r\n" % boundary).encode("utf-8")
+
+    req = urllib.request.Request(
+        API + "sendPhoto", data=body,
+        headers={"Content-Type": "multipart/form-data; boundary=%s" % boundary})
+    try:
+        with urllib.request.urlopen(req, timeout=60) as r:
+            return json.loads(r.read().decode("utf-8"))
+    except Exception as e:  # noqa
+        print("Ошибка отправки фото-палитры:", e)
+        return None
 
 
 def kb_for(question):
@@ -104,19 +135,20 @@ def finish(chat_id):
     st = STATE[chat_id]
     st["done"] = True
     p = engine.analyze_profile(st["answers"], st.get("vision"))
-    send(chat_id, format_profile(p))
-    tail = ("💬 Теперь можете спросить меня про аксессуары, капсулу или конкретную вещь — "
-            "отвечу с учётом вашего профиля.\n")
+    send_full_profile(chat_id, p)
     if claude_client.enabled():
-        tail += "📷 Или пришлите фото при дневном свете — уточню цветотип по нему.\n"
-    tail += "\nЧтобы пройти заново — /start"
-    send(chat_id, tail)
+        send(chat_id, "📷 <b>Уточним по фото?</b>\nПришлите 1–2 фото при дневном свете "
+                      "(без макияжа и фильтров) — я пересчитаю цветотип по вашей внешности.")
+    else:
+        send(chat_id, "📷 Анализ по фото включается ключом Claude (ANTHROPIC_API_KEY). "
+                      "Сейчас профиль построен по опроснику.")
+    send(chat_id, "💬 Можете спросить про аксессуары, капсулу или конкретную вещь.\n"
+                  "Пройти заново — /start")
 
 
 def format_profile(p):
     k, s, a = p["kibbe"], p["season"], p["archetype"]
     rec = p["recommendations"]
-    palette = "  ".join(s["palette"])
     lines = [
         "🎯 <b>Ваш профиль</b>",
         "",
@@ -125,8 +157,8 @@ def format_profile(p):
         "Уверенность: %d%%" % int(k["confidence"] * 100),
         "",
         "<b>Цветотип:</b> %s (%d%%)" % (s["name"], int(s["confidence"] * 100)),
-        "Палитра: %s" % palette,
         "Металл: %s" % ", ".join(s.get("metals", [])),
+        "(палитра — картинкой ниже 👇)",
         "",
         "<b>Стиль:</b> %s" % " + ".join(a["names"]),
         "",
@@ -134,10 +166,30 @@ def format_profile(p):
         "<b>✓ Ткани:</b> %s" % "; ".join(rec["fabrics"][:3]),
         "<b>✓ Аксессуары:</b> %s" % "; ".join(rec["accessories"][:3]),
         "<b>✕ Избегать:</b> %s" % "; ".join(rec["avoid"][:3]),
-        "",
-        "ℹ️ %s" % p["disclaimer"],
     ]
+    shop = rec.get("shopping") or []
+    if shop:
+        lines.append("")
+        lines.append("🛍 <b>Образы (Wildberries):</b>")
+        for it in shop:
+            lines.append("• <a href=\"%s\">%s</a>" % (it["url"], it["label"]))
+    lines += ["", "ℹ️ %s" % p["disclaimer"]]
     return "\n".join(lines)
+
+
+def send_full_profile(chat_id, p, prefix=""):
+    """Отправляет текст профиля + картинку-палитру с названиями цветов."""
+    send(chat_id, prefix + format_profile(p))
+    try:
+        png = palette_image.make_palette_png(p["season"]["palette"])
+        named = p["recommendations"].get("palette_named", [])
+        cap_lines = ["🎨 <b>Ваша палитра — %s</b>" % p["season"]["name"]]
+        for c in named:
+            cap_lines.append("%s — %s (%s)" % (c["hex"], c["name"], c["role"]))
+        caption = "\n".join(cap_lines)[:1000]
+        send_photo_bytes(chat_id, png, caption)
+    except Exception as e:  # noqa
+        print("Ошибка палитры:", e)
 
 
 def on_photo(chat_id, msg):
@@ -163,7 +215,7 @@ def on_photo(chat_id, msg):
     st["vision"] = vision
     if st.get("done"):
         p = engine.analyze_profile(st["answers"], vision)
-        send(chat_id, "✨ Уточнил по фото:\n\n" + format_profile(p))
+        send_full_profile(chat_id, p, prefix="✨ Уточнил по фото:\n\n")
     else:
         send(chat_id, "✅ Фото учтено. Допройдите опросник — и я соберу профиль с поправкой по фото.")
 
